@@ -676,7 +676,7 @@ fun NrAvailabilityBadge(
     val (label, badgeColor) = when (nrAvailability) {
         NrAvailability.STANDBY_ULI -> "5G Standby · ULI Active" to Color(0xFF00E5FF)
         NrAvailability.CONNECTED -> "5G Connected" to Color(0xFF00E676)
-        NrAvailability.NONE -> "Pure LTE" to Color(0xFF8E88A8)
+        NrAvailability.NONE -> "4G LTE" to Color(0xFF8E88A8)
     }
 
     Surface(
