@@ -555,7 +555,10 @@ fun SimSlotSection(
             slotState.technologyName.startsWith("NR") ||
             slotState.bands.any { it.technology == NetworkTechnology.LTE || it.technology == NetworkTechnology.NR_SA || it.technology == NetworkTechnology.NR_NSA }
         if (isLteOr5g) {
-            NrAvailabilityBadge(nrAvailability = slotState.nrAvailability)
+            NrAvailabilityBadge(
+                nrAvailability = slotState.nrAvailability,
+                technologyName = slotState.technologyName
+            )
             Spacer(modifier = Modifier.height(10.dp))
         }
 
@@ -683,11 +686,18 @@ fun SignalQualityBadge(
 
 @Composable
 fun NrAvailabilityBadge(
-    nrAvailability: NrAvailability
+    nrAvailability: NrAvailability,
+    technologyName: String = ""
 ) {
     val (label, badgeColor) = when (nrAvailability) {
-        NrAvailability.STANDBY_ULI -> "5G Standby · ULI Active" to Color(0xFF00E5FF)
-        NrAvailability.CONNECTED -> "5G Connected" to Color(0xFF00E676)
+        NrAvailability.STANDBY_ULI -> "5G Standby · Available" to Color(0xFF00E5FF)
+        NrAvailability.CONNECTED -> {
+            if (technologyName.contains("SA") && !technologyName.contains("NSA")) {
+                "5G SA · Connected" to Color(0xFF00E676)
+            } else {
+                "5G NSA · Connected" to Color(0xFF00E676)
+            }
+        }
         NrAvailability.NONE -> "4G LTE" to Color(0xFF8E88A8)
     }
 

@@ -840,7 +840,7 @@ class ShizukuTelephonyManager(private val context: Context) {
                                 field.getBoolean(dataInfo)
                             } catch (_: Throwable) { false }
 
-                            if (isEnDc || isNr) {
+                            if (isEnDc && isNr) {
                                 return true
                             }
                         }
@@ -852,7 +852,8 @@ class ShizukuTelephonyManager(private val context: Context) {
         // Fallback check against string representation
         try {
             val str = serviceState.toString()
-            if ((str.contains("isEnDcAvailable = true") || str.contains("isNrAvailable = true")) &&
+            if (str.contains("isEnDcAvailable = true") &&
+                str.contains("isNrAvailable = true") &&
                 !str.contains("isDcNrRestricted = true")) {
                 return true
             }
