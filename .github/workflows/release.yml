@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag name (e.g. v1.2.0)'
+        description: 'Release tag name (e.g. v1.2.2)'
         required: false
-        default: 'v1.2.0'
+        default: 'v1.2.2'
 
 permissions:
   contents: write
@@ -67,13 +67,20 @@ jobs:
           fi
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ "$TAG" = "master" ] || [ -z "$TAG" ]; then
+            TAG="${{ inputs.tag_name || 'v1.2.2' }}"
+          fi
+          VERSION="${TAG#v}"
+          echo "Building release for version: $VERSION (tag: $TAG)"
+          ./gradlew assembleRelease -PversionName="$VERSION" --stacktrace
 
       - name: Prepare Release Artifact
         run: |
           TAG="${{ github.ref_name }}"
           if [ "$TAG" = "master" ] || [ -z "$TAG" ]; then
-            TAG="${{ inputs.tag_name || 'v1.2.0' }}"
+            TAG="${{ inputs.tag_name || 'v1.2.2' }}"
           fi
           mkdir -p release-output
           cp app/build/outputs/apk/release/app-release.apk release-output/PixelBandInfo-$TAG.apk

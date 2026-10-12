@@ -276,4 +276,20 @@ class TelephonyParsingTest {
         assertEquals(NetworkTechnology.LTE, sorted[3].technology)
         assertEquals(false, sorted[3].isAnchor)
     }
+
+    @Test
+    fun testBuildConfigVersionIsPopulated() {
+        assertNotNull(BuildConfig.VERSION_NAME)
+        assertEquals(true, BuildConfig.VERSION_NAME.isNotBlank())
+        // Version name should match semver like 1.2.2
+        val semverRegex = Regex("""^\d+\.\d+\.\d+.*$""")
+        assertEquals(true, semverRegex.matches(BuildConfig.VERSION_NAME))
+    }
+
+    @Test
+    fun testShizukuTelephonyManagerInitialState() {
+        val manager = ShizukuTelephonyManager(mockContext)
+        // Before Shizuku binder connects or permission granted, isShizukuGranted is false
+        assertEquals(false, manager.isShizukuGranted.value)
+    }
 }

@@ -3,6 +3,51 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val appVersionName: String = run {
+    val prop = findProperty("versionName") as? String
+    if (!prop.isNullOrBlank()) return@run prop.removePrefix("v")
+
+    val envRef = System.getenv("GITHUB_REF_NAME")
+    if (!envRef.isNullOrBlank() && envRef.startsWith("v")) {
+        return@run envRef.removePrefix("v")
+    }
+
+    val envVersion = System.getenv("APP_VERSION_NAME")
+    if (!envVersion.isNullOrBlank()) {
+        return@run envVersion.removePrefix("v")
+    }
+
+    val gitTag = try {
+        providers.exec {
+            commandLine("git", "describe", "--tags", "--abbrev=0")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.map { it.trim().removePrefix("v") }.orNull
+    } catch (_: Throwable) {
+        null
+    }
+    if (!gitTag.isNullOrBlank()) return@run gitTag
+
+    "1.2.2"
+}
+
+val appVersionCode: Int = run {
+    val prop = (findProperty("versionCode") as? String)?.toIntOrNull()
+    if (prop != null) return@run prop
+
+    val envCode = System.getenv("APP_VERSION_CODE")?.toIntOrNull()
+    if (envCode != null) return@run envCode
+
+    val commitCount = try {
+        providers.exec {
+            commandLine("git", "rev-list", "--count", "HEAD")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.map { it.trim().toIntOrNull() }.orNull
+    } catch (_: Throwable) {
+        null
+    }
+    1000 + (commitCount ?: 10)
+}
+
 android {
     namespace = "com.ray.pixelbandinfo"
     compileSdk = 37
@@ -11,8 +56,8 @@ android {
         applicationId = "com.ray.pixelbandinfo.beta"
         minSdk = 31
         targetSdk = 37
-        versionCode = 1003
-        versionName = "1.2.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -62,6 +107,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
