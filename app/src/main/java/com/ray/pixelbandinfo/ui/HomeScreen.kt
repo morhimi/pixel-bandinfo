@@ -539,7 +539,10 @@ fun SimSlotSection(
         }
 
         // 5G Status / Standby Badge
-        if (slotState.nrAvailability != NrAvailability.NONE) {
+        val isLteOr5g = slotState.technologyName.startsWith("LTE") ||
+            slotState.technologyName.startsWith("NR") ||
+            slotState.bands.any { it.technology == NetworkTechnology.LTE || it.technology == NetworkTechnology.NR_SA || it.technology == NetworkTechnology.NR_NSA }
+        if (isLteOr5g) {
             NrAvailabilityBadge(nrAvailability = slotState.nrAvailability)
             Spacer(modifier = Modifier.height(10.dp))
         }
@@ -673,11 +676,11 @@ fun NrAvailabilityBadge(
     val (label, badgeColor) = when (nrAvailability) {
         NrAvailability.STANDBY_ULI -> "5G Standby · ULI Active" to Color(0xFF00E5FF)
         NrAvailability.CONNECTED -> "5G Connected" to Color(0xFF00E676)
-        NrAvailability.NONE -> return
+        NrAvailability.NONE -> "5G Standby · Inactive" to Color(0xFF8E88A8)
     }
 
     Surface(
-        color = badgeColor.copy(alpha = 0.18f),
+        color = badgeColor.copy(alpha = if (nrAvailability == NrAvailability.NONE) 0.12f else 0.18f),
         shape = RoundedCornerShape(6.dp)
     ) {
         Row(
