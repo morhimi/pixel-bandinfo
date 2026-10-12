@@ -185,6 +185,46 @@ class TelephonyParsingTest {
     }
 
     @Test
+    fun testIsServiceStateNrAvailableWhenEndcFalse() {
+        val manager = ShizukuTelephonyManager(mockContext)
+        val mockServiceState = mock(android.telephony.ServiceState::class.java)
+        `when`(mockServiceState.toString()).thenReturn(
+            "DataSpecificRegistrationInfo :{ maxDataCalls = 16 isDcNrRestricted = false isNrAvailable = true isEnDcAvailable = false }"
+        )
+        `when`(mockServiceState.networkRegistrationInfoList).thenReturn(emptyList())
+
+        val isNrAvail = manager.isServiceStateNrAvailable(mockServiceState)
+        assertEquals(false, isNrAvail)
+
+        val nrAvail = manager.resolveNrAvailability(
+            hasPhysicalNr = false,
+            overrideNetworkType = 1, // LTE_CA
+            serviceState = mockServiceState
+        )
+        assertEquals(com.ray.pixelbandinfo.model.NrAvailability.NONE, nrAvail)
+    }
+
+    @Test
+    fun testIsServiceStateNrAvailableWhenEndcAndNrTrue() {
+        val manager = ShizukuTelephonyManager(mockContext)
+        val mockServiceState = mock(android.telephony.ServiceState::class.java)
+        `when`(mockServiceState.toString()).thenReturn(
+            "DataSpecificRegistrationInfo :{ maxDataCalls = 16 isDcNrRestricted = false isNrAvailable = true isEnDcAvailable = true }"
+        )
+        `when`(mockServiceState.networkRegistrationInfoList).thenReturn(emptyList())
+
+        val isNrAvail = manager.isServiceStateNrAvailable(mockServiceState)
+        assertEquals(true, isNrAvail)
+
+        val nrAvail = manager.resolveNrAvailability(
+            hasPhysicalNr = false,
+            overrideNetworkType = 1, // LTE_CA but serviceState indicates true ENDC standby
+            serviceState = mockServiceState
+        )
+        assertEquals(com.ray.pixelbandinfo.model.NrAvailability.STANDBY_ULI, nrAvail)
+    }
+
+    @Test
     fun testUpdateTechnologyName() {
         val manager = ShizukuTelephonyManager(mockContext)
 
