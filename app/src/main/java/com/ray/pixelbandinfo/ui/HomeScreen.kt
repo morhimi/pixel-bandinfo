@@ -31,6 +31,7 @@ import com.ray.pixelbandinfo.model.displayLabel
 import com.ray.pixelbandinfo.model.channelDetailsText
 import com.ray.pixelbandinfo.model.SignalMetrics
 import com.ray.pixelbandinfo.model.quality
+import com.ray.pixelbandinfo.model.sortedForDisplay
 import kotlin.coroutines.cancellation.CancellationException
 
 val DeepPurpleBackground = Color(0xFF0D061A)
@@ -278,7 +279,7 @@ fun PipView(
                 if (slotState.bands.isEmpty()) {
                     Text("No active frequency band data reported.", color = TextMutedLavender, fontSize = 12.sp)
                 } else {
-                    slotState.bands.forEach { band ->
+                    slotState.bands.sortedForDisplay().forEach { band ->
                         val bwLabel = band.bandwidthDownMhz?.let { "${it}MHz" } ?: "--MHz"
 
                         Text(
@@ -565,7 +566,7 @@ fun SimSlotSection(
                 fontSize = 16.sp
             )
         } else {
-            slotState.bands.forEach { band ->
+            slotState.bands.sortedForDisplay().forEach { band ->
                 BandItem(band = band)
                 Spacer(modifier = Modifier.height(8.dp))
             }

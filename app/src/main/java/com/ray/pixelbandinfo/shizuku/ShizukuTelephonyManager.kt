@@ -32,6 +32,7 @@ import com.ray.pixelbandinfo.model.NrAvailability
 import com.ray.pixelbandinfo.model.QciInfo
 import com.ray.pixelbandinfo.model.SignalMetrics
 import com.ray.pixelbandinfo.model.SimSlotState
+import com.ray.pixelbandinfo.model.sortedForDisplay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -592,6 +593,7 @@ class ShizukuTelephonyManager(private val context: Context) {
             val displayInfo = latestDisplayInfo[subId]
             val nrAvail = resolveNrAvailability(hasPhysicalNr, displayInfo?.overrideNetworkType, serviceState)
             val finalTech = updateTechnologyName(techName, nrAvail, hasPhysicalNr)
+            val sortedBands = updatedBands.sortedForDisplay()
 
             current.copy(
                 slotIndex = slotIndex,
@@ -600,7 +602,7 @@ class ShizukuTelephonyManager(private val context: Context) {
                 plmn = updatedPlmn,
                 isActiveDataSim = isDataSim,
                 technologyName = finalTech,
-                bands = updatedBands,
+                bands = sortedBands,
                 nrAvailability = nrAvail
             )
         }
@@ -667,7 +669,7 @@ class ShizukuTelephonyManager(private val context: Context) {
                 } else {
                     band
                 }
-            }
+            }.sortedForDisplay()
             current.copy(bands = updatedBands)
         }
     }
@@ -730,24 +732,26 @@ class ShizukuTelephonyManager(private val context: Context) {
             }
         }
 
-        val hasPhysicalNr = bandsWithSignal.any {
+        val sortedBands = bandsWithSignal.sortedForDisplay()
+
+        val hasPhysicalNr = sortedBands.any {
             it.technology == NetworkTechnology.NR_SA || it.technology == NetworkTechnology.NR_NSA
         }
         val displayInfo = latestDisplayInfo[subId]
         val nrAvail = resolveNrAvailability(hasPhysicalNr, displayInfo?.overrideNetworkType, serviceState)
         val finalTech = updateTechnologyName(primaryTech, nrAvail, hasPhysicalNr)
 
-        val bandsSummary = bandsWithSignal.joinToString(", ") {
+        val bandsSummary = sortedBands.joinToString(", ") {
             val anchorTag = if (it.isAnchor) "[P]" else "[S]"
             val signalTag = it.signalMetrics?.rsrp?.let { r -> "(${r}dBm)" } ?: ""
             "${it.technology.label} B${it.band ?: "?"}(${it.bandwidthDownMhz ?: "?"}MHz)$anchorTag$signalTag"
         }
-        Log.d(TAG, "handlePhysicalChannelConfigs subId=$subId, bandsCount=${bandsWithSignal.size}, tech=$finalTech, nrAvail=$nrAvail: $bandsSummary")
+        Log.d(TAG, "handlePhysicalChannelConfigs subId=$subId, bandsCount=${sortedBands.size}, tech=$finalTech, nrAvail=$nrAvail: $bandsSummary")
 
         updateSlotState(subId) { current ->
             current.copy(
                 technologyName = finalTech,
-                bands = bandsWithSignal,
+                bands = sortedBands,
                 nrAvailability = nrAvail
             )
         }

@@ -7,6 +7,7 @@ import com.ray.pixelbandinfo.model.BandInfo
 import com.ray.pixelbandinfo.model.NetworkTechnology
 import com.ray.pixelbandinfo.model.displayLabel
 import com.ray.pixelbandinfo.model.channelDetailsText
+import com.ray.pixelbandinfo.model.sortedForDisplay
 import com.ray.pixelbandinfo.shizuku.ShizukuTelephonyManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -226,5 +227,53 @@ class TelephonyParsingTest {
                 hasPhysicalNr = false
             )
         )
+    }
+
+    @Test
+    fun testBandSortingNrFirst() {
+        val lteAnchor = BandInfo(
+            technology = NetworkTechnology.LTE,
+            band = 28,
+            bandwidthDownMhz = 10,
+            isAnchor = true
+        )
+        val lteSecB3 = BandInfo(
+            technology = NetworkTechnology.LTE,
+            band = 3,
+            bandwidthDownMhz = 20,
+            isAnchor = false
+        )
+        val lteSecB7 = BandInfo(
+            technology = NetworkTechnology.LTE,
+            band = 7,
+            bandwidthDownMhz = 20,
+            isAnchor = false
+        )
+        val nrNsaN78 = BandInfo(
+            technology = NetworkTechnology.NR_NSA,
+            band = 78,
+            bandwidthDownMhz = 100,
+            isAnchor = false
+        )
+
+        // Given physical carrier order (LTE anchor first, NR last)
+        val inputList = listOf(lteAnchor, lteSecB3, lteSecB7, nrNsaN78)
+        val sorted = inputList.sortedForDisplay()
+
+        // 1. NR carrier must be at the very top
+        assertEquals(NetworkTechnology.NR_NSA, sorted[0].technology)
+        assertEquals(78, sorted[0].band)
+        assertEquals(100, sorted[0].bandwidthDownMhz)
+
+        // 2. LTE anchor carrier next
+        assertEquals(NetworkTechnology.LTE, sorted[1].technology)
+        assertEquals(28, sorted[1].band)
+        assertEquals(true, sorted[1].isAnchor)
+
+        // 3. LTE secondary carriers follow
+        assertEquals(NetworkTechnology.LTE, sorted[2].technology)
+        assertEquals(false, sorted[2].isAnchor)
+        assertEquals(NetworkTechnology.LTE, sorted[3].technology)
+        assertEquals(false, sorted[3].isAnchor)
     }
 }
