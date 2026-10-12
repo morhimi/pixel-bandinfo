@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ray.pixelbandinfo.BuildConfig
 import com.ray.pixelbandinfo.model.BandInfo
 import com.ray.pixelbandinfo.model.NetworkTechnology
 import com.ray.pixelbandinfo.model.NrAvailability
@@ -146,7 +147,7 @@ fun MainContentView(
                 ),
                 title = {
                     Text(
-                        "Pixel BandInfo Beta v1.2.0",
+                        "Pixel BandInfo Beta v${BuildConfig.VERSION_NAME}",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -402,6 +403,16 @@ fun SettingsScreen(
 
                 SettingsTextItem(
                     title = "Google for the Android Open Source Project"
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // About
+                SettingsHeader("About")
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsTextItem(
+                    title = "Pixel BandInfo Beta v${BuildConfig.VERSION_NAME}"
                 )
             }
 

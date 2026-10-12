@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Rational
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,13 +28,14 @@ class HomeActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
         if (::telephonyManager.isInitialized) {
+            telephonyManager.checkShizukuPermission()
             telephonyManager.registerTelephonyListeners()
         }
     }
 
     private val shizukuPermissionListener = Shizuku.OnRequestPermissionResultListener { _, grantResult ->
-        if (grantResult == PackageManager.PERMISSION_GRANTED) {
-            telephonyManager.registerTelephonyListeners()
+        if (::telephonyManager.isInitialized) {
+            telephonyManager.checkShizukuPermission()
         }
     }
 
@@ -141,13 +143,38 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::telephonyManager.isInitialized) {
+            telephonyManager.checkShizukuPermission()
+        }
+    }
+
     private fun requestShizukuPermission() {
         try {
             if (Shizuku.pingBinder()) {
-                Shizuku.requestPermission(1001)
+                if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                    telephonyManager.checkShizukuPermission()
+                } else {
+                    Shizuku.requestPermission(1001)
+                }
+            } else {
+                Toast.makeText(
+                    this,
+                    "Shizuku service is not running. Please start Shizuku first.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                if (::telephonyManager.isInitialized) {
+                    telephonyManager.checkShizukuPermission()
+                }
             }
         } catch (t: Throwable) {
             t.printStackTrace()
+            Toast.makeText(
+                this,
+                "Failed to request Shizuku permission: ${t.message}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 

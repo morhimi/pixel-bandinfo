@@ -78,6 +78,17 @@ class ShizukuTelephonyManager(private val context: Context) {
         checkShizukuPermission()
     }
 
+    private val binderDeadListener = Shizuku.OnBinderDeadListener {
+        Log.d(TAG, "binderDeadListener triggered")
+        _isShizukuGranted.value = false
+        stopPolling()
+    }
+
+    private val permissionResultListener = Shizuku.OnRequestPermissionResultListener { _, grantResult ->
+        Log.d(TAG, "permissionResultListener triggered: $grantResult")
+        checkShizukuPermission()
+    }
+
     private val subscriptionsChangedListener = object : SubscriptionManager.OnSubscriptionsChangedListener() {
         override fun onSubscriptionsChanged() {
             Log.d(TAG, "onSubscriptionsChanged triggered")
@@ -90,6 +101,16 @@ class ShizukuTelephonyManager(private val context: Context) {
             Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
         } catch (t: Throwable) {
             Log.e(TAG, "Error adding binderReceivedListenerSticky", t)
+        }
+        try {
+            Shizuku.addBinderDeadListener(binderDeadListener)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error adding binderDeadListener", t)
+        }
+        try {
+            Shizuku.addRequestPermissionResultListener(permissionResultListener)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error adding permissionResultListener", t)
         }
         try {
             subscriptionManager.addOnSubscriptionsChangedListener(context.mainExecutor, subscriptionsChangedListener)
@@ -1185,6 +1206,12 @@ class ShizukuTelephonyManager(private val context: Context) {
         stopPolling()
         try {
             Shizuku.removeBinderReceivedListener(binderReceivedListener)
+        } catch (_: Throwable) {}
+        try {
+            Shizuku.removeBinderDeadListener(binderDeadListener)
+        } catch (_: Throwable) {}
+        try {
+            Shizuku.removeRequestPermissionResultListener(permissionResultListener)
         } catch (_: Throwable) {}
         try {
             subscriptionManager.removeOnSubscriptionsChangedListener(subscriptionsChangedListener)
