@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ray.pixelbandinfo.model.BandInfo
 import com.ray.pixelbandinfo.model.NetworkTechnology
+import com.ray.pixelbandinfo.model.NrAvailability
 import com.ray.pixelbandinfo.model.QciInfo
 import com.ray.pixelbandinfo.model.SimSlotState
 import com.ray.pixelbandinfo.model.displayLabel
@@ -537,6 +538,12 @@ fun SimSlotSection(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
+        // 5G Status / Standby Badge
+        if (slotState.nrAvailability != NrAvailability.NONE) {
+            NrAvailabilityBadge(nrAvailability = slotState.nrAvailability)
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
         // QCI & APN List
         if (showQciInfo) {
             if (slotState.qciList.isNotEmpty()) {
@@ -654,6 +661,40 @@ fun SignalQualityBadge(
                 color = TextWhite,
                 fontSize = if (isCompact) 11.sp else 15.sp,
                 fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+fun NrAvailabilityBadge(
+    nrAvailability: NrAvailability
+) {
+    val (label, badgeColor) = when (nrAvailability) {
+        NrAvailability.STANDBY_ULI -> "5G Standby · ULI Active" to Color(0xFF00E5FF)
+        NrAvailability.CONNECTED -> "5G Connected" to Color(0xFF00E676)
+        NrAvailability.NONE -> return
+    }
+
+    Surface(
+        color = badgeColor.copy(alpha = 0.18f),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(badgeColor, RoundedCornerShape(3.dp))
+            )
+            Text(
+                text = label,
+                color = badgeColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }

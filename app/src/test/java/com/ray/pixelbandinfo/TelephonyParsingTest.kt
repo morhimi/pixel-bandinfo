@@ -127,4 +127,104 @@ class TelephonyParsingTest {
         assertNotNull(imsQci)
         assertEquals(5, imsQci?.qci)
     }
+
+    @Test
+    fun testResolveNrAvailability() {
+        val manager = ShizukuTelephonyManager(mockContext)
+
+        // 1. Physical NR carrier active -> CONNECTED
+        assertEquals(
+            com.ray.pixelbandinfo.model.NrAvailability.CONNECTED,
+            manager.resolveNrAvailability(
+                hasPhysicalNr = true,
+                overrideNetworkType = 0,
+                serviceState = null
+            )
+        )
+
+        // 2. Physical NR carrier NOT active, but TelephonyDisplayInfo indicates NR_NSA (3) -> STANDBY_ULI
+        assertEquals(
+            com.ray.pixelbandinfo.model.NrAvailability.STANDBY_ULI,
+            manager.resolveNrAvailability(
+                hasPhysicalNr = false,
+                overrideNetworkType = 3, // OVERRIDE_NETWORK_TYPE_NR_NSA
+                serviceState = null
+            )
+        )
+
+        // 3. Physical NR carrier NOT active, but TelephonyDisplayInfo indicates NR_NSA_MMWAVE (4) -> STANDBY_ULI
+        assertEquals(
+            com.ray.pixelbandinfo.model.NrAvailability.STANDBY_ULI,
+            manager.resolveNrAvailability(
+                hasPhysicalNr = false,
+                overrideNetworkType = 4, // OVERRIDE_NETWORK_TYPE_NR_NSA_MMWAVE
+                serviceState = null
+            )
+        )
+
+        // 4. Physical NR carrier NOT active, but TelephonyDisplayInfo indicates NR_ADVANCED (5) -> STANDBY_ULI
+        assertEquals(
+            com.ray.pixelbandinfo.model.NrAvailability.STANDBY_ULI,
+            manager.resolveNrAvailability(
+                hasPhysicalNr = false,
+                overrideNetworkType = 5, // OVERRIDE_NETWORK_TYPE_NR_ADVANCED
+                serviceState = null
+            )
+        )
+
+        // 5. Physical NR carrier NOT active, override is NONE (0) -> NONE
+        assertEquals(
+            com.ray.pixelbandinfo.model.NrAvailability.NONE,
+            manager.resolveNrAvailability(
+                hasPhysicalNr = false,
+                overrideNetworkType = 0,
+                serviceState = null
+            )
+        )
+    }
+
+    @Test
+    fun testUpdateTechnologyName() {
+        val manager = ShizukuTelephonyManager(mockContext)
+
+        // Pure LTE transitions to LTE (5G Ready) when ULI active
+        assertEquals(
+            "LTE (5G Ready)",
+            manager.updateTechnologyName(
+                currentTech = "LTE",
+                nrAvail = com.ray.pixelbandinfo.model.NrAvailability.STANDBY_ULI,
+                hasPhysicalNr = false
+            )
+        )
+
+        // LTE (5G Ready) transitions back to LTE when ULI inactive
+        assertEquals(
+            "LTE",
+            manager.updateTechnologyName(
+                currentTech = "LTE (5G Ready)",
+                nrAvail = com.ray.pixelbandinfo.model.NrAvailability.NONE,
+                hasPhysicalNr = false
+            )
+        )
+
+        // NR5G NSA is preserved when physical NR is active
+        assertEquals(
+            "NR5G NSA",
+            manager.updateTechnologyName(
+                currentTech = "NR5G NSA",
+                nrAvail = com.ray.pixelbandinfo.model.NrAvailability.CONNECTED,
+                hasPhysicalNr = true
+            )
+        )
+
+        // No Service is preserved regardless of availability
+        assertEquals(
+            "No Service",
+            manager.updateTechnologyName(
+                currentTech = "No Service",
+                nrAvail = com.ray.pixelbandinfo.model.NrAvailability.STANDBY_ULI,
+                hasPhysicalNr = false
+            )
+        )
+    }
 }
