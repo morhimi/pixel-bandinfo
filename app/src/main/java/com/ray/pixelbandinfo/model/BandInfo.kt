@@ -119,6 +119,12 @@ val BandInfo.channelDetailsText: String
         }
     }
 
+enum class NrAvailability {
+    NONE,
+    STANDBY_ULI,
+    CONNECTED
+}
+
 data class QciInfo(
     val apnName: String,
     val qci: Int?,
@@ -134,5 +140,6 @@ data class SimSlotState(
     val isActiveDataSim: Boolean = false,
     val technologyName: String = "No Service",
     val bands: List<BandInfo> = emptyList(),
-    val qciList: List<QciInfo> = emptyList()
+    val qciList: List<QciInfo> = emptyList(),
+    val nrAvailability: NrAvailability = NrAvailability.NONE
 )

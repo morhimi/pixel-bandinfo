@@ -22,11 +22,13 @@ import android.telephony.CellSignalStrengthNr
 import android.telephony.SignalStrength
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyCallback
+import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import android.telephony.data.ApnSetting
 import android.util.Log
 import com.ray.pixelbandinfo.model.BandInfo
 import com.ray.pixelbandinfo.model.NetworkTechnology
+import com.ray.pixelbandinfo.model.NrAvailability
 import com.ray.pixelbandinfo.model.QciInfo
 import com.ray.pixelbandinfo.model.SignalMetrics
 import com.ray.pixelbandinfo.model.SimSlotState
@@ -67,6 +69,7 @@ class ShizukuTelephonyManager(private val context: Context) {
 
     private val registeredListeners = mutableMapOf<Int, CallbackRegistration>()
     private val latestSignalMetrics = mutableMapOf<Int, Pair<SignalMetrics?, SignalMetrics?>>()
+    private val latestDisplayInfo = mutableMapOf<Int, TelephonyDisplayInfo>()
     private var lastCallbackTime = 0L
 
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
@@ -352,7 +355,8 @@ class ShizukuTelephonyManager(private val context: Context) {
             val callback = object : TelephonyCallback(),
                 TelephonyCallback.PhysicalChannelConfigListener,
                 TelephonyCallback.PreciseDataConnectionStateListener,
-                TelephonyCallback.SignalStrengthsListener {
+                TelephonyCallback.SignalStrengthsListener,
+                TelephonyCallback.DisplayInfoListener {
 
                 override fun onPhysicalChannelConfigChanged(configs: MutableList<PhysicalChannelConfig>) {
                     Log.d(TAG, "onPhysicalChannelConfigChanged subId=$subId, configs=${configs.size}")
@@ -368,6 +372,11 @@ class ShizukuTelephonyManager(private val context: Context) {
                 override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     Log.d(TAG, "onSignalStrengthsChanged subId=$subId, level=${signalStrength.level}")
                     handleSignalStrengthChanged(subId, signalStrength)
+                }
+
+                override fun onDisplayInfoChanged(telephonyDisplayInfo: TelephonyDisplayInfo) {
+                    Log.d(TAG, "onDisplayInfoChanged subId=$subId, displayInfo=$telephonyDisplayInfo")
+                    handleDisplayInfoChanged(subId, telephonyDisplayInfo)
                 }
             }
 
@@ -389,6 +398,7 @@ class ShizukuTelephonyManager(private val context: Context) {
                 // Event 33 = EVENT_PHYSICAL_CHANNEL_CONFIG_CHANGED
                 // Event 13 = EVENT_PRECISE_DATA_CONNECTION_STATE_CHANGED
                 // Event 9  = EVENT_SIGNAL_STRENGTHS_CHANGED
+                // Event 21 = EVENT_DISPLAY_INFO_CHANGED
                 listenMethod.invoke(
                     telephonyRegistry,
                     true,                // renounceFineLocationAccess
@@ -397,7 +407,7 @@ class ShizukuTelephonyManager(private val context: Context) {
                     "com.android.shell", // pkg with privileged permissions
                     "",                  // featureId
                     listenerBinder,
-                    intArrayOf(33, 13, 9),  // events
+                    intArrayOf(33, 13, 9, 21),  // events
                     true                 // notifyNow
                 )
                 registeredListeners[subId] = CallbackRegistration(callback, listenerBinder)
@@ -412,6 +422,7 @@ class ShizukuTelephonyManager(private val context: Context) {
     }
 
     private fun unregisterShizukuListenerForSub(subId: Int) {
+        latestDisplayInfo.remove(subId)
         val reg = registeredListeners.remove(subId) ?: return
         try {
             val telephonyRegistry = getTelephonyRegistry() ?: return
@@ -575,14 +586,22 @@ class ShizukuTelephonyManager(private val context: Context) {
                 else -> "No Service"
             }
 
+            val hasPhysicalNr = updatedBands.any {
+                it.technology == NetworkTechnology.NR_SA || it.technology == NetworkTechnology.NR_NSA
+            }
+            val displayInfo = latestDisplayInfo[subId]
+            val nrAvail = resolveNrAvailability(hasPhysicalNr, displayInfo?.overrideNetworkType, serviceState)
+            val finalTech = updateTechnologyName(techName, nrAvail, hasPhysicalNr)
+
             current.copy(
                 slotIndex = slotIndex,
                 displayName = subInfo.displayName?.toString(),
                 carrierName = updatedCarrier,
                 plmn = updatedPlmn,
                 isActiveDataSim = isDataSim,
-                technologyName = techName,
-                bands = updatedBands
+                technologyName = finalTech,
+                bands = updatedBands,
+                nrAvailability = nrAvail
             )
         }
     }
@@ -655,7 +674,7 @@ class ShizukuTelephonyManager(private val context: Context) {
 
     private fun handlePhysicalChannelConfigs(subId: Int, configs: List<PhysicalChannelConfig>) {
         if (isAirplaneModeOn()) {
-            updateSlotState(subId) { it.copy(technologyName = "No Service", bands = emptyList()) }
+            updateSlotState(subId) { it.copy(technologyName = "No Service", bands = emptyList(), nrAvailability = NrAvailability.NONE) }
             return
         }
 
@@ -711,18 +730,146 @@ class ShizukuTelephonyManager(private val context: Context) {
             }
         }
 
+        val hasPhysicalNr = bandsWithSignal.any {
+            it.technology == NetworkTechnology.NR_SA || it.technology == NetworkTechnology.NR_NSA
+        }
+        val displayInfo = latestDisplayInfo[subId]
+        val nrAvail = resolveNrAvailability(hasPhysicalNr, displayInfo?.overrideNetworkType, serviceState)
+        val finalTech = updateTechnologyName(primaryTech, nrAvail, hasPhysicalNr)
+
         val bandsSummary = bandsWithSignal.joinToString(", ") {
             val anchorTag = if (it.isAnchor) "[P]" else "[S]"
             val signalTag = it.signalMetrics?.rsrp?.let { r -> "(${r}dBm)" } ?: ""
             "${it.technology.label} B${it.band ?: "?"}(${it.bandwidthDownMhz ?: "?"}MHz)$anchorTag$signalTag"
         }
-        Log.d(TAG, "handlePhysicalChannelConfigs subId=$subId, bandsCount=${bandsWithSignal.size}, tech=$primaryTech: $bandsSummary")
+        Log.d(TAG, "handlePhysicalChannelConfigs subId=$subId, bandsCount=${bandsWithSignal.size}, tech=$finalTech, nrAvail=$nrAvail: $bandsSummary")
 
         updateSlotState(subId) { current ->
             current.copy(
-                technologyName = primaryTech,
-                bands = bandsWithSignal
+                technologyName = finalTech,
+                bands = bandsWithSignal,
+                nrAvailability = nrAvail
             )
+        }
+    }
+
+    private fun handleDisplayInfoChanged(subId: Int, displayInfo: TelephonyDisplayInfo) {
+        latestDisplayInfo[subId] = displayInfo
+        updateSlotState(subId) { current ->
+            val serviceState = getServiceState(subId, current.slotIndex)
+            val hasPhysicalNr = current.bands.any {
+                it.technology == NetworkTechnology.NR_SA || it.technology == NetworkTechnology.NR_NSA
+            }
+            val nrAvail = resolveNrAvailability(hasPhysicalNr, displayInfo.overrideNetworkType, serviceState)
+            val updatedTech = updateTechnologyName(current.technologyName, nrAvail, hasPhysicalNr)
+            current.copy(
+                nrAvailability = nrAvail,
+                technologyName = updatedTech
+            )
+        }
+    }
+
+    fun isServiceStateNrAvailable(serviceState: ServiceState?): Boolean {
+        if (serviceState == null) return false
+        try {
+            val regList = serviceState.networkRegistrationInfoList
+            for (reg in regList) {
+                // Check nrState (NetworkRegistrationInfo.NR_STATE_NOT_RESTRICTED = 2, NR_STATE_CONNECTED = 3)
+                try {
+                    val nrStateMethod = reg.javaClass.getMethod("getNrState")
+                    val nrState = nrStateMethod.invoke(reg) as? Int
+                    if (nrState == 2 || nrState == 3) {
+                        return true
+                    }
+                } catch (_: Throwable) {}
+
+                // Check DataSpecificRegistrationInfo via reflection
+                try {
+                    val dataInfo = try {
+                        val field = reg.javaClass.getDeclaredField("mDataSpecificInfo")
+                        field.isAccessible = true
+                        field.get(reg)
+                    } catch (_: Throwable) {
+                        val method = reg.javaClass.getDeclaredMethod("getDataSpecificInfo")
+                        method.isAccessible = true
+                        method.invoke(reg)
+                    }
+
+                    if (dataInfo != null) {
+                        val isDcNrRestricted = try {
+                            val field = dataInfo.javaClass.getDeclaredField("isDcNrRestricted")
+                            field.isAccessible = true
+                            field.getBoolean(dataInfo)
+                        } catch (_: Throwable) { false }
+
+                        if (!isDcNrRestricted) {
+                            val isEnDc = try {
+                                val field = dataInfo.javaClass.getDeclaredField("isEnDcAvailable")
+                                field.isAccessible = true
+                                field.getBoolean(dataInfo)
+                            } catch (_: Throwable) { false }
+
+                            val isNr = try {
+                                val field = dataInfo.javaClass.getDeclaredField("isNrAvailable")
+                                field.isAccessible = true
+                                field.getBoolean(dataInfo)
+                            } catch (_: Throwable) { false }
+
+                            if (isEnDc || isNr) {
+                                return true
+                            }
+                        }
+                    }
+                } catch (_: Throwable) {}
+            }
+        } catch (_: Throwable) {}
+
+        // Fallback check against string representation
+        try {
+            val str = serviceState.toString()
+            if ((str.contains("isEnDcAvailable = true") || str.contains("isNrAvailable = true")) &&
+                !str.contains("isDcNrRestricted = true")) {
+                return true
+            }
+        } catch (_: Throwable) {}
+
+        return false
+    }
+
+    fun resolveNrAvailability(
+        hasPhysicalNr: Boolean,
+        overrideNetworkType: Int?,
+        serviceState: ServiceState?
+    ): NrAvailability {
+        if (hasPhysicalNr) {
+            return NrAvailability.CONNECTED
+        }
+
+        @Suppress("DEPRECATION")
+        val isDisplayInfoNr = overrideNetworkType == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA ||
+                overrideNetworkType == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA_MMWAVE ||
+                overrideNetworkType == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED
+
+        if (isDisplayInfoNr) {
+            return NrAvailability.STANDBY_ULI
+        }
+
+        if (serviceState != null && isServiceStateNrAvailable(serviceState)) {
+            return NrAvailability.STANDBY_ULI
+        }
+
+        return NrAvailability.NONE
+    }
+
+    fun updateTechnologyName(currentTech: String, nrAvail: NrAvailability, hasPhysicalNr: Boolean): String {
+        if (currentTech == "No Service") return "No Service"
+        if (hasPhysicalNr) return currentTech
+        return if (nrAvail == NrAvailability.STANDBY_ULI && (currentTech.startsWith("LTE") || currentTech == "Unknown")) {
+            "LTE (5G Ready)"
+        } else if (currentTech == "LTE (5G Ready)" && nrAvail != NrAvailability.STANDBY_ULI) {
+            "LTE"
+        } else {
+            currentTech
         }
     }
 
