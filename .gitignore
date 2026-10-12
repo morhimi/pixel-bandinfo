@@ -1,0 +1,33 @@
+# Gradle & Build
+.gradle/
+build/
+**/build/
+
+# Android Studio & IntelliJ IDEA
+.idea/
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local device & SDK properties
+local.properties
+
+# Build artifacts & package outputs
+*.apk
+*.aab
+*.ap_
+output-metadata.json
+
+# Keystore & Signing credentials
+*.jks
+*.keystore
+key.properties
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Agent skill instructions
+SKILL.md

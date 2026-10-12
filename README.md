@@ -4,25 +4,27 @@ It's been a long time coming, but now it's finally here: a way to accurately vie
 
 Heavily inspired by Samsung's "*#0011#" Service Menu; always wanted to be able to access that information on other devices, and now we can.
 
-These are the parameters that could be be displayed,
-
 - PLMN (MCC + MNC)
 
 - Technology (5G NR, 4G LTE, 3G HSPA, 2G GSM)
 
-- Frequency band number
+- Frequency band number & channel bandwidth (both raw and aggregated)
 
-- Bandwidth (in MHz), both raw and aggregate
+- Live reception quality & signal metrics (RSRP, RSRQ, SINR)
 
-- QCI (Quality-of-Service Class Identifier) (a.k.a Priority Data level)
+- QCI (Quality-of-Service Class Identifier)
 
-- EARFCN
+- EARFCN / NR-ARFCN
 
-- PCI* (only visible on anchor band)
+- PCI* (Physical Cell ID)
 
-- TAC* (only visible on anchor band)
+- TAC* (Tracking Area Code)
 
-You can use the built-in resizeable, configurable Picture-in-Picture mode to view connected bands while you run speed tests.
+You can use the built-in resizeable, configurable Picture-in-Picture (PiP) mode to view connected bands while you run speed tests.
+
+## Download
+
+Get the latest signed APK from the [Releases](https://github.com/morhimi/pixel-bandinfo/releases) section.
 
 ## Demo
 
