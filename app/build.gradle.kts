@@ -20,6 +20,7 @@ val appVersionName: String = run {
     val gitTag = try {
         providers.exec {
             commandLine("git", "describe", "--tags", "--abbrev=0")
+            isIgnoreExitValue = true
         }.standardOutput.asText.map { it.trim().removePrefix("v") }.orNull
     } catch (_: Throwable) {
         null
@@ -39,6 +40,7 @@ val appVersionCode: Int = run {
     val commitCount = try {
         providers.exec {
             commandLine("git", "rev-list", "--count", "HEAD")
+            isIgnoreExitValue = true
         }.standardOutput.asText.map { it.trim().toIntOrNull() }.orNull
     } catch (_: Throwable) {
         null
