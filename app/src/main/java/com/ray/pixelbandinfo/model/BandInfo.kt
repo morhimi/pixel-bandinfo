@@ -143,3 +143,15 @@ data class SimSlotState(
     val qciList: List<QciInfo> = emptyList(),
     val nrAvailability: NrAvailability = NrAvailability.NONE
 )
+
+fun List<BandInfo>.sortedForDisplay(): List<BandInfo> {
+    return this.sortedWith(
+        compareByDescending<BandInfo> {
+            it.technology == NetworkTechnology.NR_SA || it.technology == NetworkTechnology.NR_NSA
+        }.thenByDescending {
+            it.isAnchor
+        }.thenByDescending {
+            it.bandwidthDownMhz ?: 0
+        }
+    )
+}
